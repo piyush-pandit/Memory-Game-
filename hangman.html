@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light dark">
+    <title>Hangman</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --background: #f5f5f5;
+            --surface: #ffffff;
+            --text: #292929;
+            --muted: #5d6670;
+            --primary: #f36421;
+            --primary-hover: #d94f0e;
+            --border: #d6dce2;
+            --correct: #167345;
+            --incorrect: #b42318;
+            --shadow: 0 4px 18px rgba(30, 41, 59, 0.1);
+        }
+
+        body.dark-theme {
+            color-scheme: dark;
+            --background: #121821;
+            --surface: #1e2936;
+            --text: #f2f5f8;
+            --muted: #c0cad5;
+            --primary: #ff854c;
+            --primary-hover: #ff9b6c;
+            --border: #465363;
+            --correct: #64d69a;
+            --incorrect: #ff827a;
+            --shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px;
+            background: var(--background);
+            color: var(--text);
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            line-height: 1.5;
+            transition: background-color 180ms ease, color 180ms ease;
+        }
+
+        button {
+            min-height: 44px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            padding: 9px 14px;
+            background: var(--primary);
+            color: #fff;
+            font: inherit;
+            font-weight: 650;
+            cursor: pointer;
+            transition: background-color 150ms ease, transform 150ms ease;
+        }
+
+        button:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        button:focus-visible {
+            outline: 3px solid var(--text);
+            outline-offset: 3px;
+        }
+
+        button:disabled {
+            cursor: default;
+            opacity: 0.58;
+        }
+
+        .page {
+            width: min(100%, 900px);
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 12px;
+        }
+
+        .theme-toggle {
+            border-color: var(--border);
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        .theme-toggle:hover {
+            background: var(--border);
+        }
+
+        header {
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(2rem, 6vw, 3rem);
+            line-height: 1.15;
+        }
+
+        header p {
+            margin: 10px 0 0;
+            color: var(--muted);
+        }
+
+        .game-panel {
+            display: grid;
+            grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.2fr);
+            gap: 28px;
+            align-items: center;
+            padding: clamp(18px, 4vw, 32px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .drawing-wrap {
+            display: grid;
+            place-items: center;
+            min-height: 250px;
+            border-radius: 12px;
+            background: var(--background);
+        }
+
+        .drawing {
+            width: min(100%, 270px);
+            height: auto;
+            overflow: visible;
+            color: var(--text);
+        }
+
+        .gallows {
+            fill: none;
+            stroke: var(--muted);
+            stroke-width: 7;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .hangman-part {
+            fill: none;
+            stroke: var(--incorrect);
+            stroke-width: 5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .game-content {
+            min-width: 0;
+            text-align: center;
+        }
+
+        .category {
+            margin: 0;
+            color: var(--muted);
+            font-weight: 650;
+        }
+
+        .word {
+            min-height: 52px;
+            margin: 18px 0 8px;
+            overflow-wrap: anywhere;
+            font-size: clamp(1.7rem, 5vw, 2.5rem);
+            font-weight: 750;
+            letter-spacing: 0.16em;
+            white-space: pre-wrap;
+        }
+
+        .attempts {
+            margin: 0 0 16px;
+            color: var(--muted);
+        }
+
+        .attempts strong {
+            color: var(--text);
+        }
+
+        .message {
+            min-height: 28px;
+            margin: 0 0 14px;
+            font-weight: 700;
+        }
+
+        .message[data-state="won"] {
+            color: var(--correct);
+        }
+
+        .message[data-state="lost"] {
+            color: var(--incorrect);
+        }
+
+        .keyboard {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(34px, 1fr));
+            gap: 7px;
+            margin: 0 auto 16px;
+        }
+
+        .letter-button {
+            min-width: 0;
+            min-height: 42px;
+            padding: 6px 2px;
+        }
+
+        .letter-button.correct {
+            border-color: var(--correct);
+            background: var(--correct);
+        }
+
+        .letter-button.incorrect {
+            border-color: var(--incorrect);
+            background: var(--incorrect);
+        }
+
+        .new-word {
+            min-width: 150px;
+        }
+
+        .instructions {
+            margin: 20px 0 0;
+            color: var(--muted);
+            text-align: center;
+            font-size: 0.95rem;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            clip-path: inset(50%);
+        }
+
+        @media (max-width: 650px) {
+            body {
+                padding: 16px;
+            }
+
+            .game-panel {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .drawing-wrap {
+                min-height: 190px;
+            }
+
+            .drawing {
+                width: min(75%, 220px);
+                max-height: 210px;
+            }
+
+            .keyboard {
+                grid-template-columns: repeat(7, minmax(30px, 1fr));
+                gap: 6px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                scroll-behavior: auto !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <div class="topbar">
+            <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">Dark theme</button>
+        </div>
+
+        <header>
+            <h1>Hangman</h1>
+            <p>Guess the hidden word before the drawing is complete.</p>
+        </header>
+
+        <section class="game-panel" aria-label="Hangman game">
+            <div class="drawing-wrap">
+                <svg class="drawing" viewBox="0 0 220 260" role="img" aria-labelledby="drawingTitle drawingDescription">
+                    <title id="drawingTitle">Hangman drawing</title>
+                    <desc id="drawingDescription">The drawing shows the number of incorrect guesses.</desc>
+                    <g class="gallows">
+                        <path d="M28 238 H190 M65 238 V24 H150 V48"></path>
+                    </g>
+                    <circle class="hangman-part" data-part="1" cx="150" cy="70" r="22" hidden></circle>
+                    <path class="hangman-part" data-part="2" d="M150 92 V158" hidden></path>
+                    <path class="hangman-part" data-part="3" d="M150 108 L118 136" hidden></path>
+                    <path class="hangman-part" data-part="4" d="M150 108 L182 136" hidden></path>
+                    <path class="hangman-part" data-part="5" d="M150 158 L122 198" hidden></path>
+                    <path class="hangman-part" data-part="6" d="M150 158 L178 198" hidden></path>
+                </svg>
+            </div>
+
+            <div class="game-content">
+                <p class="category" id="category">Category: ...</p>
+                <p class="word" id="word" aria-label="Hidden word"></p>
+                <p class="attempts" id="attempts">Incorrect guesses: <strong>0 / 6</strong></p>
+                <p class="message" id="message" role="status" aria-live="polite"></p>
+                <div class="keyboard" id="keyboard" role="group" aria-label="Choose a letter"></div>
+                <button class="new-word" id="newWord" type="button">New Word</button>
+                <p class="sr-only" id="guessAnnouncement" aria-live="polite" aria-atomic="true"></p>
+            </div>
+        </section>
+
+        <p class="instructions">Select a letter or type A-Z on your keyboard. Repeated guesses do not use an attempt.</p>
+    </main>
+
+    <script>
+        const MAX_MISTAKES = 6;
+        const WORDS = [
+            { word: 'BADGER', category: 'Animals' },
+            { word: 'DOLPHIN', category: 'Animals' },
+            { word: 'ELEPHANT', category: 'Animals' },
+            { word: 'FLAMINGO', category: 'Animals' },
+            { word: 'GIRAFFE', category: 'Animals' },
+            { word: 'HEDGEHOG', category: 'Animals' },
+            { word: 'OCTOPUS', category: 'Animals' },
+            { word: 'PENGUIN', category: 'Animals' },
+            { word: 'TURTLE', category: 'Animals' },
+            { word: 'WAFFLE', category: 'Food' },
+            { word: 'PANCAKE', category: 'Food' },
+            { word: 'POPCORN', category: 'Food' },
+            { word: 'PRETZEL', category: 'Food' },
+            { word: 'PUMPKIN', category: 'Food' },
+            { word: 'ICE CREAM', category: 'Food' },
+            { word: 'SANDWICH', category: 'Food' },
+            { word: 'SPAGHETTI', category: 'Food' },
+            { word: 'STRAWBERRY', category: 'Food' },
+            { word: 'WATERMELON', category: 'Food' },
+            { word: 'AVALANCHE', category: 'Nature' },
+            { word: 'CAMPFIRE', category: 'Nature' },
+            { word: 'CANYON', category: 'Nature' },
+            { word: 'DANDELION', category: 'Nature' },
+            { word: 'GLACIER', category: 'Nature' },
+            { word: 'HURRICANE', category: 'Nature' },
+            { word: 'RAINBOW', category: 'Nature' },
+            { word: 'VOLCANO', category: 'Nature' },
+            { word: 'BACKPACK', category: 'Everyday things' },
+            { word: 'BICYCLE', category: 'Everyday things' },
+            { word: 'BINOCULARS', category: 'Everyday things' },
+            { word: 'FLASHLIGHT', category: 'Everyday things' },
+            { word: 'KEYBOARD', category: 'Everyday things' },
+            { word: 'SKATEBOARD', category: 'Everyday things' },
+            { word: 'TELESCOPE', category: 'Everyday things' },
+            { word: 'UMBRELLA', category: 'Everyday things' },
+            { word: 'YOYO', category: 'Everyday things' },
+            { word: 'ASTRONAUT', category: 'People and places' },
+            { word: 'LIBRARY', category: 'People and places' },
+            { word: 'PLAYGROUND', category: 'People and places' },
+            { word: 'POST OFFICE', category: 'People and places' },
+            { word: 'TREASURE', category: 'People and places' },
+            { word: 'WIZARD', category: 'People and places' }
+        ];
+
+        const elements = {
+            category: document.querySelector('#category'),
+            word: document.querySelector('#word'),
+            attempts: document.querySelector('#attempts strong'),
+            message: document.querySelector('#message'),
+            keyboard: document.querySelector('#keyboard'),
+            newWord: document.querySelector('#newWord'),
+            themeToggle: document.querySelector('#themeToggle'),
+            parts: document.querySelectorAll('.hangman-part'),
+            guessAnnouncement: document.querySelector('#guessAnnouncement')
+        };
+
+        let currentEntry;
+        let guessedLetters;
+        let mistakes;
+        let gameOver;
+        let previousWord = '';
+
+        function createKeyboard() {
+            const fragment = document.createDocumentFragment();
+            for (let code = 65; code <= 90; code++) {
+                const letter = String.fromCharCode(code);
+                const button = document.createElement('button');
+                button.className = 'letter-button';
+                button.type = 'button';
+                button.textContent = letter;
+                button.dataset.letter = letter;
+                button.setAttribute('aria-label', `Guess ${letter}`);
+                button.addEventListener('click', () => guessLetter(letter));
+                fragment.appendChild(button);
+            }
+            elements.keyboard.replaceChildren(fragment);
+        }
+
+        function chooseWord() {
+            const choices = WORDS.filter(entry => entry.word !== previousWord);
+            return choices[Math.floor(Math.random() * choices.length)];
+        }
+
+        function renderWord() {
+            const visible = [...currentEntry.word].map(character =>
+                character === ' ' || guessedLetters.has(character) || (gameOver && mistakes === MAX_MISTAKES)
+                    ? character
+                    : '_'
+            );
+            elements.word.textContent = visible.join(' ');
+            const letterCount = [...currentEntry.word].filter(character => character !== ' ').length;
+            elements.word.setAttribute('aria-label', `${letterCount} letter word`);
+        }
+
+        function renderKeyboard() {
+            elements.keyboard.querySelectorAll('button').forEach(button => {
+                const letter = button.dataset.letter;
+                const hasBeenGuessed = guessedLetters.has(letter);
+                button.disabled = hasBeenGuessed || gameOver;
+                button.classList.toggle('correct', hasBeenGuessed && currentEntry.word.includes(letter));
+                button.classList.toggle('incorrect', hasBeenGuessed && !currentEntry.word.includes(letter));
+                if (hasBeenGuessed) {
+                    button.setAttribute('aria-label', `${letter}, ${currentEntry.word.includes(letter) ? 'correct' : 'incorrect'}`);
+                } else {
+                    button.setAttribute('aria-label', `Guess ${letter}`);
+                }
+            });
+        }
+
+        function renderGame() {
+            elements.category.textContent = `Category: ${currentEntry.category}`;
+            elements.attempts.textContent = `${mistakes} / ${MAX_MISTAKES}`;
+            elements.parts.forEach(part => {
+                part.hidden = Number(part.dataset.part) > mistakes;
+            });
+            renderWord();
+            renderKeyboard();
+        }
+
+        function finishGame(won) {
+            gameOver = true;
+            elements.message.dataset.state = won ? 'won' : 'lost';
+            elements.message.textContent = won
+                ? 'You got it! Great guessing.'
+                : `Out of guesses. The word was ${currentEntry.word}.`;
+            elements.guessAnnouncement.textContent = elements.message.textContent;
+            renderGame();
+        }
+
+        function guessLetter(letter) {
+            if (gameOver || guessedLetters.has(letter)) return;
+
+            guessedLetters.add(letter);
+            if (!currentEntry.word.includes(letter)) {
+                mistakes++;
+                elements.guessAnnouncement.textContent = `${letter} is not in the word. ${MAX_MISTAKES - mistakes} guesses remaining.`;
+            } else {
+                elements.guessAnnouncement.textContent = `${letter} is in the word.`;
+            }
+
+            if ([...currentEntry.word].filter(character => character !== ' ').every(character => guessedLetters.has(character))) {
+                finishGame(true);
+            } else if (mistakes === MAX_MISTAKES) {
+                finishGame(false);
+            } else {
+                renderGame();
+            }
+        }
+
+        function startNewRound() {
+            currentEntry = chooseWord();
+            previousWord = currentEntry.word;
+            guessedLetters = new Set();
+            mistakes = 0;
+            gameOver = false;
+            elements.message.textContent = '';
+            elements.message.removeAttribute('data-state');
+            elements.guessAnnouncement.textContent = '';
+            renderGame();
+        }
+
+        elements.newWord.addEventListener('click', startNewRound);
+
+        document.addEventListener('keydown', event => {
+            if (event.altKey || event.ctrlKey || event.metaKey || !/^[a-z]$/i.test(event.key)) return;
+            guessLetter(event.key.toUpperCase());
+        });
+
+        elements.themeToggle.addEventListener('click', () => {
+            const isDark = document.body.classList.toggle('dark-theme');
+            elements.themeToggle.textContent = isDark ? 'Light theme' : 'Dark theme';
+            elements.themeToggle.setAttribute('aria-pressed', String(isDark));
+        });
+
+        createKeyboard();
+        startNewRound();
+    </script>
+</body>
+</html>
